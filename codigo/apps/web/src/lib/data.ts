@@ -55,7 +55,7 @@ export async function getTransactions(householdId: string, opts?: {
     const supabase = createClient()
     let q = supabase
         .from('Transaction')
-        .select('id, txnDate, amount, direction, payeeText, notes, status, needsReview, categoryId, accountId, Category(id, name, type)')
+        .select('id, txnDate, amount, direction, payeeText, notes, status, needsReview, isRecurringMatch, categoryId, accountId, Category(id, name, type)')
         .eq('householdId', householdId)
         .order('txnDate', { ascending: false })
 

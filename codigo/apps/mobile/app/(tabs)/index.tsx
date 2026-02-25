@@ -1,30 +1,44 @@
-import { ScrollView, View, Text, TouchableOpacity, StyleSheet, Dimensions } from 'react-native'
+import { ScrollView, View, Text, TouchableOpacity, StyleSheet, Dimensions, ActivityIndicator } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { LinearGradient } from 'expo-linear-gradient'
 import { TrendingUp, ArrowUpCircle, ArrowDownCircle, Bell, ChevronRight } from 'lucide-react-native'
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme'
+import { useDashboardData } from '@/lib/hooks'
+import { useRouter } from 'expo-router'
 
 const { width } = Dimensions.get('window')
-
-const MOCK_ACCOUNTS = [
-  { id: '1', name: 'BAC Corriente', balance: 820000, currency: 'CRC' },
-  { id: '2', name: 'Scotiabank', balance: 350000, currency: 'CRC' },
-  { id: '3', name: 'Visa BN', balance: -145000, currency: 'CRC' },
-]
-
-const MOCK_UPCOMING = [
-  { id: '1', name: 'Netflix', amount: 9900, days: 2 },
-  { id: '2', name: 'Spotify', amount: 7900, days: 5 },
-  { id: '3', name: 'AWS Hosting', amount: 35000, days: 11 },
-]
-
 const fmt = (n: number) => `₡${Math.abs(n).toLocaleString('es-CR')}`
 
 export default function DashboardScreen() {
-  const netWorth = MOCK_ACCOUNTS.reduce((s, a) => s + a.balance, 0)
-  const spent = 284000
-  const budget = 500000
-  const pct = Math.min((spent / budget) * 100, 100)
+  const router = useRouter()
+  const { accounts, netWorth, assets, debt, recentTxns, loading } = useDashboardData()
+
+  // Calcular Spending Plan del mes actual desde transacciones reales
+  const hoy = new Date()
+  const esMes = (d: string) => {
+    const dt = new Date(d)
+    return dt.getMonth() === hoy.getMonth() && dt.getFullYear() === hoy.getFullYear()
+  }
+  const mesIngresos = recentTxns
+    .filter(t => (t as any).direction === 'INFLOW' && esMes(t.txnDate as string))
+    .reduce((s, t) => s + (t.amount ?? 0), 0)
+  const mesGastos = recentTxns
+    .filter(t => (t as any).direction === 'OUTFLOW' && esMes(t.txnDate as string))
+    .reduce((s, t) => s + (t.amount ?? 0), 0)
+  const pct = mesIngresos > 0 ? Math.min((mesGastos / mesIngresos) * 100, 100) : 0
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top']}>
+        <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+          <ActivityIndicator color={Colors.primary} size="large" />
+          <Text style={{ color: Colors.foregroundMuted, marginTop: 12, fontSize: Fonts.sizes.sm }}>
+            Cargando tus finanzas...
+          </Text>
+        </View>
+      </SafeAreaView>
+    )
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top']}>
@@ -55,77 +69,114 @@ export default function DashboardScreen() {
           <View style={styles.netWorthRow}>
             <View style={styles.netWorthStat}>
               <ArrowUpCircle size={14} color="#6EE7B7" />
-              <Text style={styles.netWorthStatText}>{fmt(1170000)} activos</Text>
+              <Text style={styles.netWorthStatText}>{fmt(assets)} activos</Text>
             </View>
             <View style={styles.netWorthStat}>
               <ArrowDownCircle size={14} color="#FCA5A5" />
-              <Text style={styles.netWorthStatText}>{fmt(145000)} deudas</Text>
+              <Text style={styles.netWorthStatText}>{fmt(Math.abs(debt))} deudas</Text>
             </View>
           </View>
         </LinearGradient>
 
         {/* Spending Plan */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Plan de Gastos</Text>
+          <Text style={styles.sectionTitle}>Plan de Gastos — {hoy.toLocaleString('es-CR', { month: 'long' })}</Text>
           <View style={styles.card}>
             <View style={styles.spendRow}>
-              <Text style={styles.spendLabel}>Gastado</Text>
-              <Text style={styles.spendLabel}>Presupuesto</Text>
+              <Text style={styles.spendLabel}>Ingresos</Text>
+              <Text style={styles.spendLabel}>Gastos</Text>
             </View>
             <View style={styles.spendRow}>
-              <Text style={styles.spendAmt}>{fmt(spent)}</Text>
-              <Text style={styles.spendAmt}>{fmt(budget)}</Text>
+              <Text style={[styles.spendAmt, { color: Colors.accent }]}>{fmt(mesIngresos)}</Text>
+              <Text style={[styles.spendAmt, { color: Colors.destructive }]}>{fmt(mesGastos)}</Text>
             </View>
             <View style={styles.progressBg}>
               <View style={[styles.progressFill, { width: `${pct}%` as any }]} />
             </View>
-            <Text style={styles.spendMeta}>{pct.toFixed(0)}% utilizado · quedan {fmt(budget - spent)}</Text>
+            <Text style={styles.spendMeta}>
+              {pct.toFixed(0)}% gastado · queda {fmt(Math.max(mesIngresos - mesGastos, 0))}
+            </Text>
+            {mesIngresos === 0 && (
+              <Text style={{ fontSize: Fonts.sizes.xs, color: Colors.foregroundSubtle, marginTop: 4, textAlign: 'center' }}>
+                Agrega transacciones para ver tu Spending Plan
+              </Text>
+            )}
           </View>
         </View>
 
         {/* Cuentas */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Mis Cuentas</Text>
-            <TouchableOpacity style={styles.seeAll}>
-              <Text style={styles.seeAllText}>Ver todas</Text>
-              <ChevronRight size={14} color={Colors.primary} />
-            </TouchableOpacity>
-          </View>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.accountsScroll}>
-            {MOCK_ACCOUNTS.map(a => (
-              <View key={a.id} style={[styles.accountCard, a.balance < 0 && styles.accountCardRed]}>
-                <Text style={styles.accountName} numberOfLines={1}>{a.name}</Text>
-                <Text style={[styles.accountBalance, a.balance < 0 && { color: Colors.destructive }]}>
-                  {a.balance < 0 ? '-' : ''}{fmt(a.balance)}
-                </Text>
-                <Text style={styles.accountCurrency}>{a.currency}</Text>
-              </View>
-            ))}
-          </ScrollView>
-        </View>
-
-        {/* Próximos Pagos */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Próximos Pagos</Text>
-          <View style={styles.card}>
-            {MOCK_UPCOMING.map((p, i) => {
-              const urgent = p.days <= 3
-              return (
-                <View key={p.id} style={[styles.payRow, i > 0 && styles.rowDivider]}>
-                  <View style={[styles.dayBadge, urgent && styles.dayBadgeUrgent]}>
-                    <Text style={[styles.dayNum, urgent && { color: Colors.destructive }]}>
-                      {p.days === 0 ? 'HOY' : p.days}
-                    </Text>
-                    {p.days > 0 && <Text style={styles.dayLabel}>días</Text>}
-                  </View>
-                  <Text style={styles.payName}>{p.name}</Text>
-                  <Text style={styles.payAmount}>{fmt(p.amount)}</Text>
+        {accounts.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Mis Cuentas</Text>
+              <TouchableOpacity style={styles.seeAll} onPress={() => router.push('/(tabs)/accounts')}>
+                <Text style={styles.seeAllText}>Ver todas</Text>
+                <ChevronRight size={14} color={Colors.primary} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.accountsScroll}>
+              {accounts.map(a => (
+                <View key={a.id} style={[styles.accountCard, (a.openingBalance ?? 0) < 0 && styles.accountCardRed]}>
+                  <Text style={styles.accountName} numberOfLines={1}>{a.name}</Text>
+                  <Text style={[styles.accountBalance, (a.openingBalance ?? 0) < 0 && { color: Colors.destructive }]}>
+                    {(a.openingBalance ?? 0) < 0 ? '-' : ''}{fmt(a.openingBalance ?? 0)}
+                  </Text>
+                  <Text style={styles.accountCurrency}>{a.currencyCode}</Text>
                 </View>
-              )
-            })}
+              ))}
+            </ScrollView>
           </View>
-        </View>
+        )}
+
+        {/* Estado vacío si no hay cuentas */}
+        {accounts.length === 0 && (
+          <View style={styles.section}>
+            <View style={[styles.card, { alignItems: 'center', paddingVertical: 24 }]}>
+              <Text style={{ fontSize: 36, marginBottom: 8 }}>🏦</Text>
+              <Text style={{ color: Colors.foregroundMuted, fontSize: Fonts.sizes.sm, fontWeight: Fonts.weights.semibold }}>
+                Sin cuentas registradas
+              </Text>
+              <TouchableOpacity
+                style={{ marginTop: 12, paddingHorizontal: 20, paddingVertical: 8, backgroundColor: Colors.primary, borderRadius: Radius.lg }}
+                onPress={() => router.push('/(tabs)/accounts')}
+              >
+                <Text style={{ color: '#fff', fontSize: Fonts.sizes.xs, fontWeight: Fonts.weights.bold }}>Agregar Cuenta</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* Últimas Transacciones */}
+        {recentTxns.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Últimas Transacciones</Text>
+              <TouchableOpacity style={styles.seeAll} onPress={() => router.push('/(tabs)/transactions')}>
+                <Text style={styles.seeAllText}>Ver todas</Text>
+                <ChevronRight size={14} color={Colors.primary} />
+              </TouchableOpacity>
+            </View>
+            <View style={styles.card}>
+              {recentTxns.slice(0, 5).map((t, i) => (
+                <View key={t.id} style={[styles.payRow, i > 0 && styles.rowDivider]}>
+                  <View style={[styles.dayBadge, {
+                    backgroundColor: (t as any).direction === 'INFLOW' ? Colors.accentMuted : Colors.destructiveMuted
+                  }]}>
+                    <Text style={{ fontSize: 10, fontWeight: '700', color: (t as any).direction === 'INFLOW' ? Colors.accent : Colors.destructive }}>
+                      {(t as any).direction === 'INFLOW' ? 'IN' : 'OUT'}
+                    </Text>
+                  </View>
+                  <Text style={styles.payName} numberOfLines={1}>{t.payeeText ?? 'Sin descripción'}</Text>
+                  <Text style={[styles.payAmount, {
+                    color: (t as any).direction === 'INFLOW' ? Colors.accent : Colors.destructive
+                  }]}>
+                    {(t as any).direction === 'INFLOW' ? '+' : '-'}{fmt(t.amount ?? 0)}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
 
       </ScrollView>
     </SafeAreaView>
@@ -166,7 +217,6 @@ const styles = StyleSheet.create({
   spendMeta: { fontSize: Fonts.sizes.xs, color: Colors.foregroundMuted, textAlign: 'right' },
 
   accountsScroll: { marginLeft: -Spacing.lg },
-
   accountCard: {
     backgroundColor: Colors.card, borderRadius: Radius.xl, borderWidth: 1,
     borderColor: Colors.cardBorder, padding: Spacing.md, marginLeft: Spacing.lg,
@@ -179,7 +229,7 @@ const styles = StyleSheet.create({
 
   payRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md, paddingVertical: Spacing.sm },
   rowDivider: { borderTopWidth: 1, borderTopColor: Colors.cardBorder },
-  dayBadge: { width: 44, borderRadius: Radius.md, backgroundColor: Colors.surface, alignItems: 'center', paddingVertical: 6 },
+  dayBadge: { width: 36, height: 28, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center' },
   dayBadgeUrgent: { backgroundColor: Colors.destructiveMuted },
   dayNum: { fontSize: Fonts.sizes.md, fontWeight: Fonts.weights.black, color: Colors.foreground, lineHeight: 20 },
   dayLabel: { fontSize: 8, color: Colors.foregroundMuted, textTransform: 'uppercase' },

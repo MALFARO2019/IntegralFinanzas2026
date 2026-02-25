@@ -1,8 +1,8 @@
 import { type NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@supabase/ssr'
 
-// Rutas que NO requieren autenticación
-const PUBLIC_ROUTES = ['/login', '/register', '/auth/callback']
+// Rutas que NO requieren autenticación (o que son accesibles con sesión activa)
+const PUBLIC_ROUTES = ['/login', '/register', '/auth/callback', '/onboarding']
 
 export async function middleware(request: NextRequest) {
     let supabaseResponse = NextResponse.next({ request })
@@ -40,7 +40,8 @@ export async function middleware(request: NextRequest) {
     }
 
     // Redirigir al dashboard si ya hay sesión y va al login/registro
-    if (user && isPublic && pathname !== '/auth/callback') {
+    // (pero NO a /onboarding — debe ser accesible con sesión)
+    if (user && isPublic && pathname !== '/auth/callback' && pathname !== '/onboarding') {
         const homeUrl = request.nextUrl.clone()
         homeUrl.pathname = '/'
         return NextResponse.redirect(homeUrl)

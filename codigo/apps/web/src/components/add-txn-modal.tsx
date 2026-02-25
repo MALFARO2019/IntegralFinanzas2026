@@ -1,9 +1,13 @@
 "use client"
 
-import { useState } from 'react'
-import { X, Check } from 'lucide-react'
+import { useState, useTransition } from 'react'
+import { X, Check, Loader2 } from 'lucide-react'
+import { addTransaction } from '@/lib/transaction-actions'
 
-const CATEGORIES = ['Alimentación', 'Hogar', 'Transporte', 'Trabajo', 'Inversiones', 'Supermercado', 'Salud', 'Entretenimiento', 'Otro']
+const CATEGORIES = [
+    'Alimentación', 'Hogar', 'Transporte', 'Trabajo',
+    'Inversiones', 'Supermercado', 'Salud', 'Entretenimiento', 'Suscripciones', 'Otro'
+]
 
 interface AddTxnModalProps {
     open: boolean
@@ -18,14 +22,34 @@ export function AddTxnModal({ open, onClose }: AddTxnModalProps) {
     const [date, setDate] = useState(new Date().toISOString().split('T')[0])
     const [notes, setNotes] = useState('')
     const [saved, setSaved] = useState(false)
+    const [error, setError] = useState<string | null>(null)
+    const [isPending, startTransition] = useTransition()
 
     const handleSave = () => {
-        // TODO: conectar con API / Prisma al implementar Auth
-        setSaved(true)
-        setTimeout(() => {
-            setSaved(false)
-            onClose()
-        }, 800)
+        if (!amount || !payee) return
+        setError(null)
+
+        const formData = new FormData()
+        formData.set('direction', type)
+        formData.set('amount', amount)
+        formData.set('payee', payee)
+        formData.set('category', category)
+        formData.set('date', date)
+        formData.set('notes', notes)
+
+        startTransition(async () => {
+            try {
+                await addTransaction(formData)
+                setSaved(true)
+                setTimeout(() => {
+                    setSaved(false)
+                    setAmount(''); setPayee(''); setNotes('')
+                    onClose()
+                }, 800)
+            } catch (e: any) {
+                setError(e.message ?? 'Error al guardar. Intenta de nuevo.')
+            }
+        })
     }
 
     if (!open) return null
@@ -33,10 +57,7 @@ export function AddTxnModal({ open, onClose }: AddTxnModalProps) {
     return (
         <>
             {/* Backdrop */}
-            <div
-                className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
-                onClick={onClose}
-            />
+            <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
             {/* Sheet */}
             <div className="fixed bottom-0 left-0 right-0 z-50 bg-card rounded-t-3xl border-t border-border/60 shadow-2xl p-5 pb-safe animate-in slide-in-from-bottom duration-300 max-h-[90vh] overflow-y-auto">
@@ -59,11 +80,10 @@ export function AddTxnModal({ open, onClose }: AddTxnModalProps) {
                             key={t}
                             onClick={() => setType(t)}
                             className={`flex-1 py-2 rounded-lg text-xs font-semibold transition-all ${type === t
-                                    ? t === 'INFLOW' ? 'bg-accent text-accent-foreground shadow' :
-                                        t === 'TRANSFER' ? 'bg-muted text-foreground shadow' :
-                                            'bg-destructive text-destructive-foreground shadow'
-                                    : 'text-muted-foreground hover:text-foreground'
-                                }`}
+                                ? t === 'INFLOW' ? 'bg-accent text-accent-foreground shadow'
+                                    : t === 'TRANSFER' ? 'bg-muted text-foreground shadow'
+                                        : 'bg-destructive text-destructive-foreground shadow'
+                                : 'text-muted-foreground hover:text-foreground'}`}
                         >
                             {t === 'OUTFLOW' ? '💸 Gasto' : t === 'INFLOW' ? '💵 Ingreso' : '🔄 Transfer'}
                         </button>
@@ -82,6 +102,7 @@ export function AddTxnModal({ open, onClose }: AddTxnModalProps) {
                                 value={amount}
                                 onChange={e => setAmount(e.target.value)}
                                 className="flex-1 bg-transparent text-2xl font-extrabold outline-none placeholder:text-muted-foreground/40"
+                                autoFocus
                             />
                         </div>
                     </div>
@@ -133,16 +154,23 @@ export function AddTxnModal({ open, onClose }: AddTxnModalProps) {
                         />
                     </div>
 
+                    {/* Error */}
+                    {error && (
+                        <p className="text-destructive text-xs bg-destructive/10 border border-destructive/20 rounded-xl px-3 py-2">{error}</p>
+                    )}
+
                     {/* Botón Guardar */}
                     <button
                         onClick={handleSave}
-                        disabled={!amount || !payee}
-                        className={`w-full py-4 rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-2 ${saved
-                                ? 'bg-accent text-accent-foreground'
-                                : 'bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed'
-                            } shadow-lg`}
+                        disabled={!amount || !payee || isPending}
+                        className={`w-full py-4 rounded-2xl font-bold text-sm transition-all flex items-center justify-center gap-2 shadow-lg ${saved
+                            ? 'bg-accent text-accent-foreground'
+                            : 'bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-40 disabled:cursor-not-allowed'
+                            }`}
                     >
-                        {saved ? <><Check size={18} /> Guardado</> : '💾 Guardar Transacción'}
+                        {isPending ? <><Loader2 size={18} className="animate-spin" /> Guardando...</>
+                            : saved ? <><Check size={18} /> Guardado</>
+                                : '💾 Guardar Transacción'}
                     </button>
                 </div>
             </div>

@@ -30,9 +30,10 @@ function daysUntil(dateStr: string) {
 
 interface Props {
     upcomingTxns: { id: string; payeeText: string; amount: number; txnDate: string; direction: string; categoryName?: string }[]
+    allTxns?: { id: string; txnDate: string; direction: string; amount: number }[]
 }
 
-export default function CalendarClient({ upcomingTxns }: Props) {
+export default function CalendarClient({ upcomingTxns, allTxns = [] }: Props) {
     const { formatMoney } = usePreferences()
     const [showModal, setShowModal] = useState(false)
     const [today] = useState(new Date())
@@ -49,9 +50,16 @@ export default function CalendarClient({ upcomingTxns }: Props) {
         return { firstDay, total, year, month }
     }, [viewDate])
 
+    // Usar allTxns para marcar días con movimientos, con fallback a displayData
+    const txnSource = allTxns.length > 0 ? allTxns : displayData
     const txnDates = useMemo(() => new Set(
-        displayData.map(t => new Date(t.txnDate).getDate())
-    ), [displayData])
+        txnSource
+            .filter(t => {
+                const d = new Date(t.txnDate)
+                return d.getFullYear() === viewDate.getFullYear() && d.getMonth() === viewDate.getMonth()
+            })
+            .map(t => new Date(t.txnDate).getDate())
+    ), [txnSource, viewDate])
 
     const prevMonth = () => setViewDate(d => new Date(d.getFullYear(), d.getMonth() - 1))
     const nextMonth = () => setViewDate(d => new Date(d.getFullYear(), d.getMonth() + 1))
