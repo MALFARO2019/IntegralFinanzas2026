@@ -1,24 +1,21 @@
-import { Suspense } from 'react'
 import DashboardClient from './dashboard-client'
 import { getUserHousehold, getAccounts, getNetWorthSummary, getTransactions } from '@/lib/data'
+import { redirect } from 'next/navigation'
 
 export const dynamic = 'force-dynamic'
 
 export default async function Home() {
   const household = await getUserHousehold()
 
-  let accounts: Awaited<ReturnType<typeof getAccounts>> = []
-  let netWorthData = { netWorth: 0, assets: 0, debt: 0, accountCount: 0 }
-  let recentTxns: Awaited<ReturnType<typeof getTransactions>> = []
+  // Si el usuario no tiene Household → flujo de Onboarding
+  if (!household?.householdId) redirect('/onboarding')
 
-  if (household?.householdId) {
-    const hid = household.householdId
-      ;[accounts, netWorthData, recentTxns] = await Promise.all([
-        getAccounts(hid),
-        getNetWorthSummary(hid),
-        getTransactions(hid, { limit: 10 }),
-      ])
-  }
+  const hid = household.householdId
+  const [accounts, netWorthData, recentTxns] = await Promise.all([
+    getAccounts(hid),
+    getNetWorthSummary(hid),
+    getTransactions(hid, { limit: 10 }),
+  ])
 
   return (
     <DashboardClient
@@ -27,7 +24,7 @@ export default async function Home() {
       assets={netWorthData.assets}
       debt={netWorthData.debt}
       recentTxns={recentTxns}
-      hasHousehold={!!household?.householdId}
+      hasHousehold
     />
   )
 }
