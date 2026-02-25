@@ -1,0 +1,76 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 220 30% 96%; /* Modo claro sutil */
+    --foreground: 220 10% 10%;
+    
+    --card: 0 0% 100%;
+    --card-foreground: 220 10% 10%;
+    
+    --popover: 0 0% 100%;
+    --popover-foreground: 220 10% 10%;
+    
+    --primary: 260 100% 64%; /* Violeta vibrante Finance */
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: 220 15% 90%;
+    --secondary-foreground: 220 10% 10%;
+    
+    --muted: 220 15% 90%;
+    --muted-foreground: 220 10% 40%;
+    
+    --accent: 140 70% 45%; /* Verde Dinero Nativo */
+    --accent-foreground: 0 0% 100%;
+    
+    --destructive: 0 80% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 220 20% 90%;
+    --input: 220 20% 90%;
+    --ring: 260 100% 64%;
+
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 224 40% 5%; /* True Black Dark Mode */
+    --foreground: 220 10% 96%;
+    
+    --card: 224 40% 8%;
+    --card-foreground: 220 10% 96%;
+    
+    --popover: 224 40% 8%;
+    --popover-foreground: 220 10% 96%;
+    
+    --primary: 260 100% 64%; 
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: 224 30% 15%;
+    --secondary-foreground: 220 10% 96%;
+    
+    --muted: 224 30% 15%;
+    --muted-foreground: 220 10% 60%;
+    
+    --accent: 142 70% 45%; /* Verde Neón */
+    --accent-foreground: 224 40% 5%;
+    
+    --destructive: 0 80% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 224 30% 15%;
+    --input: 224 30% 15%;
+    --ring: 260 100% 64%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}

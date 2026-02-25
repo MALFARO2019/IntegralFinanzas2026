@@ -1,0 +1,8 @@
+{
+    "name": "integral-finanzas-2026",
+    "private": true,
+    "workspaces": [
+        "apps/*",
+        "packages/*"
+    ]
+}

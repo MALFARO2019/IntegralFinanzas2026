@@ -1,0 +1,139 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ==========================================
+// 1. Identidad y Colaboración
+// ==========================================
+
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  name          String?
+  locale        String    @default("es-CR") // Para I18n
+  timezone      String    @default("America/Costa_Rica")
+  createdAt     DateTime  @default(now())
+  lastLoginAt   DateTime?
+  status        String    @default("ACTIVE") // ACTIVE, INACTIVE, DELETED
+  
+  // Relaciones
+  households    HouseholdMember[]
+}
+
+model Household {
+  id              String    @id @default(uuid())
+  name            String
+  ownerUserId     String
+  baseCurrency    String    @default("CRC") // Moneda base del hogar
+  createdAt       DateTime  @default(now())
+  planTier        String    @default("FREE") // FREE, PREMIUM
+  status          String    @default("ACTIVE")
+
+  // Relaciones
+  members         HouseholdMember[]
+  accounts        Account[]
+  categories      Category[]
+  transactions    Transaction[]
+}
+
+model HouseholdMember {
+  id            String    @id @default(uuid())
+  role          String    @default("MEMBER") // OWNER, ADMIN, MEMBER, VIEWER
+  joinedAt      DateTime  @default(now())
+  status        String    @default("ACTIVE")
+  
+  user          User      @relation(fields: [userId], references: [id])
+  userId        String
+  
+  household     Household @relation(fields: [householdId], references: [id])
+  householdId   String
+
+  @@unique([userId, householdId])
+}
+
+// ==========================================
+// 2. Cuentas
+// ==========================================
+
+model Account {
+  id              String    @id @default(uuid())
+  type            String    // CASH, CHECKING, SAVINGS, CREDIT_CARD, LOAN, INVESTMENT
+  name            String
+  institution     String?
+  currencyCode    String    // CRC, USD, EUR
+  openingBalance  Float     @default(0.0)
+  status          String    @default("ACTIVE")
+  includeInBudget Boolean   @default(true)
+  includeInNetWorth Boolean @default(true)
+  archivedAt      DateTime?
+  
+  household       Household @relation(fields: [householdId], references: [id])
+  householdId     String
+
+  transactions    Transaction[]
+}
+
+// ==========================================
+// 3. Categorías y Tags
+// ==========================================
+
+model Category {
+  id               String    @id @default(uuid())
+  name             String
+  type             String    // INCOME, EXPENSE, TRANSFER_EXCLUDE
+  status           String    @default("ACTIVE")
+  
+  parentId         String?
+  parent           Category? @relation("CategoryHierarchy", fields: [parentId], references: [id])
+  children         Category[] @relation("CategoryHierarchy")
+
+  household        Household @relation(fields: [householdId], references: [id])
+  householdId      String
+
+  transactions     Transaction[]
+}
+
+// ==========================================
+// 4. Transacciones
+// ==========================================
+
+model Transaction {
+  id                String    @id @default(uuid())
+  txnDate           DateTime  // Fecha contable
+  postedDate        DateTime? // Fecha real banco
+  amount            Float
+  currencyCode      String
+  direction         String    // INFLOW, OUTFLOW, TRANSFER
+  
+  payeeText         String?
+  notes             String?
+  status            String    @default("CLEARED") // PENDING, CLEARED, RECONCILED, VOID
+  needsReview       Boolean   @default(false)
+  
+  // Recurrentes y automatización
+  isRecurringMatch  Boolean   @default(false)
+  
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  source            String    @default("MANUAL") // MANUAL, IMPORT, SYNC
+  externalId        String?   // Para deduplicación
+  
+  // Relaciones
+  account           Account   @relation(fields: [accountId], references: [id])
+  accountId         String
+  
+  category          Category? @relation(fields: [categoryId], references: [id])
+  categoryId        String?
+  
+  household         Household @relation(fields: [householdId], references: [id])
+  householdId       String
+}
