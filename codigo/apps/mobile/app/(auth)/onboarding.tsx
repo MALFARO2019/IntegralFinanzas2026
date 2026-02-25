@@ -6,7 +6,11 @@ import * as Haptics from 'expo-haptics'
 import { supabase } from '@/lib/supabase'
 import { Colors, Fonts, Radius, Spacing } from '@/constants/theme'
 import { Home, Landmark, ArrowRight, CheckCircle } from 'lucide-react-native'
-import { randomUUID } from 'expo-crypto'
+// UUID v4 inline — sin dependencias externas
+const randomUUID = () => 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+    const r = Math.random() * 16 | 0
+    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16)
+})
 
 const CURRENCIES = ['CRC', 'USD', 'EUR'] as const
 const ACCOUNT_TYPES = [
