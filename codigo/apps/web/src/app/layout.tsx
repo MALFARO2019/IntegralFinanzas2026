@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google'
 import './globals.css'
 import { ThemeProvider } from '@/components/theme-provider'
 import { PreferencesProvider } from '@/lib/preferences-context'
+import { AppShell } from '@/components/app-shell'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -26,7 +27,9 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <PreferencesProvider>
-            {children}
+            <AppShell>
+              {children}
+            </AppShell>
           </PreferencesProvider>
         </ThemeProvider>
       </body>
