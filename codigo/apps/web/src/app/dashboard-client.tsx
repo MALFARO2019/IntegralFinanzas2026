@@ -1,34 +1,49 @@
 "use client"
 
 import { useState } from 'react'
-import { Wallet, TrendingUp, Calendar, CreditCard, PiggyBank, Banknote, Plus, ArrowRight } from 'lucide-react'
+import { Wallet, TrendingUp, Calendar, CreditCard, PiggyBank, Banknote, Plus, ArrowRight, Landmark, AlertCircle } from 'lucide-react'
 import { SettingsSelector } from '@/components/settings-selector'
 import { usePreferences } from '@/lib/preferences-context'
 import { AddTxnModal } from '@/components/add-txn-modal'
 import Link from 'next/link'
+import type { Account, Transaction } from '@/lib/data'
 
 interface DashboardClientProps {
-    dbUserCount: number
+    accounts: Account[]
+    netWorth: number
+    assets: number
+    debt: number
+    recentTxns: Transaction[]
+    hasHousehold: boolean
 }
 
-export default function DashboardClient({ dbUserCount: _ }: DashboardClientProps) {
+const TYPE_STYLES: Record<string, { icon: typeof Banknote; color: string }> = {
+    CHECKING: { icon: Banknote, color: 'text-accent' },
+    SAVINGS: { icon: PiggyBank, color: 'text-primary' },
+    CREDIT: { icon: CreditCard, color: 'text-destructive' },
+    INVEST: { icon: Landmark, color: 'text-primary' },
+}
+
+export default function DashboardClient({
+    accounts, netWorth, assets, debt, recentTxns, hasHousehold
+}: DashboardClientProps) {
     const { formatMoney } = usePreferences()
     const [showModal, setShowModal] = useState(false)
 
-    const netWorth = 1_500_000
-    const mesIngresos = 650_000
-    const mesBills = 180_000
-    const mesMetas = 70_000
-    const libre = mesIngresos - mesBills - mesMetas
-
-    const budgetUsedPct = Math.round((mesBills + mesMetas) / mesIngresos * 100)
-    const freePct = 100 - budgetUsedPct
-
-    const accounts = [
-        { label: 'Efectivo / Corriente', icon: Banknote, amount: 820_000, color: 'text-accent' },
-        { label: 'Tarjeta de Crédito', icon: CreditCard, amount: -220_000, color: 'text-destructive' },
-        { label: 'Ahorros / Metas', icon: PiggyBank, amount: 900_000, color: 'text-primary' },
-    ]
+    // Calcular Spending Plan a partir de transacciones reales del mes actual
+    const hoy = new Date()
+    const isMes = (d: string) => {
+        const dt = new Date(d)
+        return dt.getMonth() === hoy.getMonth() && dt.getFullYear() === hoy.getFullYear()
+    }
+    const mesIngresos = recentTxns
+        .filter(t => t.direction === 'INFLOW' && isMes(t.txnDate as string))
+        .reduce((s, t) => s + (t.amount ?? 0), 0)
+    const mesGastos = recentTxns
+        .filter(t => t.direction === 'OUTFLOW' && isMes(t.txnDate as string))
+        .reduce((s, t) => s + (t.amount ?? 0), 0)
+    const libre = Math.max(mesIngresos - mesGastos, 0)
+    const gastoPct = mesIngresos > 0 ? Math.min((mesGastos / mesIngresos) * 100, 100) : 0
 
     return (
         <div className="flex flex-col min-h-screen pb-24 lg:pb-0">
@@ -44,12 +59,33 @@ export default function DashboardClient({ dbUserCount: _ }: DashboardClientProps
 
             <div className="px-4 py-4 space-y-4">
 
+                {/* Banner si no hay Household configurado */}
+                {!hasHousehold && (
+                    <div className="flex items-start gap-3 bg-warning/10 border border-warning/30 rounded-2xl p-4">
+                        <AlertCircle size={18} className="text-warning shrink-0 mt-0.5" />
+                        <div>
+                            <p className="text-sm font-bold text-warning">Sin Hogar Financiero</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">
+                                Crea un Hogar para comenzar a registrar cuentas y transacciones.
+                            </p>
+                            <Link href="/settings" className="text-xs text-primary font-semibold mt-1 inline-block hover:underline">
+                                Configure su Perfil →
+                            </Link>
+                        </div>
+                    </div>
+                )}
+
                 {/* ─── Net Worth Card ─── */}
                 <div className="bg-gradient-to-br from-primary/20 via-card to-card border border-primary/20 rounded-2xl p-5 text-center">
                     <p className="text-xs text-muted-foreground font-semibold uppercase tracking-widest mb-1">NET WORTH</p>
                     <h2 className="text-4xl font-black tracking-tight">{formatMoney(netWorth)}</h2>
-                    <div className="inline-flex items-center gap-1 mt-2 px-3 py-1 bg-accent/15 text-accent rounded-full text-xs font-semibold">
-                        <TrendingUp size={13} /> +2.5% este mes
+                    <div className="flex justify-center gap-4 mt-3">
+                        <div className="flex items-center gap-1 text-xs text-accent font-semibold">
+                            <TrendingUp size={12} /> {formatMoney(assets)} activos
+                        </div>
+                        <div className="flex items-center gap-1 text-xs text-destructive font-semibold">
+                            <TrendingUp size={12} className="rotate-180" /> {formatMoney(Math.abs(debt))} deudas
+                        </div>
                     </div>
                 </div>
 
@@ -63,86 +99,99 @@ export default function DashboardClient({ dbUserCount: _ }: DashboardClientProps
                             Ver todo <ArrowRight size={12} />
                         </Link>
                     </div>
-
                     <div className="space-y-2.5">
                         <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Ingresos</span>
+                            <span className="text-muted-foreground">Ingresos este mes</span>
                             <span className="font-semibold text-accent">+{formatMoney(mesIngresos)}</span>
                         </div>
                         <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Bills & Suscripciones</span>
-                            <span className="text-destructive">-{formatMoney(mesBills)}</span>
-                        </div>
-                        <div className="flex justify-between text-sm">
-                            <span className="text-muted-foreground">Metas (Targets)</span>
-                            <span className="text-destructive">-{formatMoney(mesMetas)}</span>
+                            <span className="text-muted-foreground">Gastos este mes</span>
+                            <span className="text-destructive">-{formatMoney(mesGastos)}</span>
                         </div>
                         <div className="flex justify-between items-center pt-2 border-t border-border/40">
                             <span className="text-sm font-semibold">Libre para Gastar</span>
                             <span className="text-xl font-black text-accent">{formatMoney(libre)}</span>
                         </div>
                     </div>
-
-                    {/* Barra de progreso mejorada */}
                     <div className="mt-3 space-y-1">
-                        <div className="w-full h-2.5 bg-secondary rounded-full overflow-hidden flex gap-0.5">
-                            <div className="h-full bg-destructive/80 rounded-full transition-all" style={{ width: `${Math.round(mesBills / mesIngresos * 100)}%` }} />
-                            <div className="h-full bg-destructive/40 rounded-full transition-all" style={{ width: `${Math.round(mesMetas / mesIngresos * 100)}%` }} />
-                            <div className="h-full bg-accent/60 rounded-full flex-1 transition-all" />
+                        <div className="w-full h-2.5 bg-secondary rounded-full overflow-hidden">
+                            <div className="h-full bg-destructive/80 rounded-full transition-all" style={{ width: `${gastoPct}%` }} />
                         </div>
                         <div className="flex justify-between text-[10px] text-muted-foreground">
-                            <span>Comprometido {budgetUsedPct}%</span>
-                            <span className="text-accent font-semibold">Libre {freePct}%</span>
+                            <span>Gastado {gastoPct.toFixed(0)}%</span>
+                            <span className="text-accent font-semibold">Libre {(100 - gastoPct).toFixed(0)}%</span>
                         </div>
                     </div>
                 </div>
 
-                {/* ─── Cuentas Card ─── */}
-                <div className="bg-card border border-border/40 rounded-2xl p-5">
-                    <div className="flex justify-between items-center mb-3">
-                        <h3 className="font-bold flex items-center gap-2">
-                            <Banknote size={16} className="text-primary" /> Mis Cuentas
-                        </h3>
+                {/* ─── Cuentas ─── */}
+                {accounts.length > 0 && (
+                    <div className="bg-card border border-border/40 rounded-2xl p-5">
+                        <div className="flex justify-between items-center mb-3">
+                            <h3 className="font-bold flex items-center gap-2">
+                                <Banknote size={16} className="text-primary" /> Mis Cuentas
+                            </h3>
+                            <Link href="/accounts" className="text-xs text-primary font-semibold flex items-center gap-0.5 hover:underline">
+                                Ver todas <ArrowRight size={12} />
+                            </Link>
+                        </div>
+                        <div className="space-y-2">
+                            {accounts.slice(0, 4).map(acc => {
+                                const s = TYPE_STYLES[acc.type] ?? TYPE_STYLES.CHECKING
+                                const Icon = s.icon
+                                return (
+                                    <div key={acc.id} className="flex items-center gap-3 py-1.5">
+                                        <div className="w-8 h-8 rounded-xl bg-secondary/60 flex items-center justify-center shrink-0">
+                                            <Icon size={16} className={s.color} />
+                                        </div>
+                                        <span className="text-sm text-muted-foreground flex-1 truncate">{acc.name}</span>
+                                        <span className={`text-sm font-bold ${acc.openingBalance < 0 ? 'text-destructive' : s.color}`}>
+                                            {formatMoney(acc.openingBalance ?? 0)}
+                                        </span>
+                                    </div>
+                                )
+                            })}
+                        </div>
                     </div>
-                    <div className="space-y-2">
-                        {accounts.map(acc => (
-                            <div key={acc.label} className="flex items-center gap-3 py-1.5">
-                                <div className="w-8 h-8 rounded-xl bg-secondary/60 flex items-center justify-center shrink-0">
-                                    <acc.icon size={16} className={acc.color} />
-                                </div>
-                                <span className="text-sm text-muted-foreground flex-1">{acc.label}</span>
-                                <span className={`text-sm font-bold ${acc.color}`}>{formatMoney(acc.amount)}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
+                )}
 
-                {/* ─── Próximos Pagos ─── */}
-                <div className="bg-card border border-border/40 rounded-2xl p-5">
-                    <div className="flex justify-between items-center mb-3">
-                        <h3 className="font-bold flex items-center gap-2">
-                            <Calendar size={16} className="text-primary" /> Próximos Pagos
-                        </h3>
-                        <Link href="/calendar" className="text-xs text-primary font-semibold flex items-center gap-0.5 hover:underline">
-                            Ver todo <ArrowRight size={12} />
+                {/* ─── Últimas Transacciones ─── */}
+                {recentTxns.length > 0 && (
+                    <div className="bg-card border border-border/40 rounded-2xl p-5">
+                        <div className="flex justify-between items-center mb-3">
+                            <h3 className="font-bold flex items-center gap-2">
+                                <Calendar size={16} className="text-primary" /> Últimas Transacciones
+                            </h3>
+                            <Link href="/transactions" className="text-xs text-primary font-semibold flex items-center gap-0.5 hover:underline">
+                                Ver todo <ArrowRight size={12} />
+                            </Link>
+                        </div>
+                        <div className="space-y-2">
+                            {recentTxns.slice(0, 5).map(t => (
+                                <div key={t.id} className="flex items-center gap-3">
+                                    <div className={`w-8 text-center shrink-0 rounded-lg py-1 text-[10px] font-bold ${t.direction === 'INFLOW' ? 'bg-accent/15 text-accent' : 'bg-destructive/15 text-destructive'}`}>
+                                        {t.direction === 'INFLOW' ? 'IN' : 'OUT'}
+                                    </div>
+                                    <span className="flex-1 text-sm truncate">{t.payeeText ?? 'Sin descripción'}</span>
+                                    <span className={`text-sm font-semibold ${t.direction === 'INFLOW' ? 'text-accent' : 'text-destructive'}`}>
+                                        {t.direction === 'INFLOW' ? '+' : '-'}{formatMoney(t.amount ?? 0)}
+                                    </span>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )}
+
+                {/* Estado vacío si no hay datos */}
+                {hasHousehold && accounts.length === 0 && recentTxns.length === 0 && (
+                    <div className="text-center py-12">
+                        <p className="text-4xl mb-3">💼</p>
+                        <p className="text-muted-foreground text-sm">Aún no hay cuentas ni transacciones.</p>
+                        <Link href="/accounts" className="text-primary text-sm font-semibold mt-2 inline-block hover:underline">
+                            Agrega tu primera cuenta →
                         </Link>
                     </div>
-                    <div className="space-y-2">
-                        {[
-                            { name: 'Netflix', days: 1, amount: 8_900 },
-                            { name: 'Spotify', days: 1, amount: 4_000 },
-                            { name: 'Alquiler', days: 12, amount: 180_000 },
-                        ].map(item => (
-                            <div key={item.name} className="flex items-center gap-3">
-                                <div className={`w-8 text-center shrink-0 rounded-lg py-1 text-xs font-extrabold ${item.days <= 3 ? 'bg-destructive/15 text-destructive' : 'bg-secondary text-muted-foreground'}`}>
-                                    {item.days}d
-                                </div>
-                                <span className="flex-1 text-sm">{item.name}</span>
-                                <span className="text-sm font-semibold text-destructive">-{formatMoney(item.amount)}</span>
-                            </div>
-                        ))}
-                    </div>
-                </div>
+                )}
 
             </div>
 
