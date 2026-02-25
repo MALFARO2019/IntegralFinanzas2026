@@ -1,35 +1,57 @@
-import { Tabs } from 'expo-router';
-import React from 'react';
+import { Tabs } from 'expo-router'
+import { LayoutDashboard, ArrowLeftRight, CalendarDays, Wallet, Settings } from 'lucide-react-native'
+import * as Haptics from 'expo-haptics'
+import { Colors, Fonts } from '@/constants/theme'
 
-import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
+const TAB_ITEMS = [
+  { name: 'index', title: 'Inicio', Icon: LayoutDashboard },
+  { name: 'transactions', title: 'Movimientos', Icon: ArrowLeftRight },
+  { name: 'calendar', title: 'Calendario', Icon: CalendarDays },
+  { name: 'accounts', title: 'Cuentas', Icon: Wallet },
+  { name: 'settings', title: 'Ajustes', Icon: Settings },
+]
 
 export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
         headerShown: false,
-        tabBarButton: HapticTab,
-      }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="explore"
-        options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
-        }}
-      />
+        tabBarStyle: {
+          backgroundColor: Colors.card,
+          borderTopColor: Colors.cardBorder,
+          borderTopWidth: 1,
+          height: 64,
+          paddingBottom: 8,
+          paddingTop: 6,
+        },
+        tabBarActiveTintColor: Colors.primary,
+        tabBarInactiveTintColor: Colors.foregroundMuted,
+        tabBarLabelStyle: {
+          fontSize: Fonts.sizes.xs,
+          fontWeight: Fonts.weights.medium,
+          marginTop: 2,
+        },
+      }}
+      screenListeners={{
+        tabPress: () => Haptics.selectionAsync(),
+      }}
+    >
+      {TAB_ITEMS.map(({ name, title, Icon }) => (
+        <Tabs.Screen
+          key={name}
+          name={name}
+          options={{
+            title,
+            tabBarIcon: ({ color, focused }) => (
+              <Icon
+                size={22}
+                color={color}
+                strokeWidth={focused ? 2.5 : 1.8}
+              />
+            ),
+          }}
+        />
+      ))}
     </Tabs>
-  );
+  )
 }
