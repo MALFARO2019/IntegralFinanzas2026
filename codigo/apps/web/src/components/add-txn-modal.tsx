@@ -9,6 +9,12 @@ const CATEGORIES = [
     'Inversiones', 'Supermercado', 'Salud', 'Entretenimiento', 'Suscripciones', 'Otro'
 ]
 
+const CURRENCIES = [
+    { code: 'CRC', symbol: '₡' },
+    { code: 'USD', symbol: '$' },
+    { code: 'EUR', symbol: '€' },
+]
+
 interface AddTxnModalProps {
     open: boolean
     onClose: () => void
@@ -17,13 +23,17 @@ interface AddTxnModalProps {
 export function AddTxnModal({ open, onClose }: AddTxnModalProps) {
     const [type, setType] = useState<'OUTFLOW' | 'INFLOW' | 'TRANSFER'>('OUTFLOW')
     const [amount, setAmount] = useState('')
+    const [currency, setCurrency] = useState('CRC')
     const [payee, setPayee] = useState('')
     const [category, setCategory] = useState(CATEGORIES[0])
     const [date, setDate] = useState(new Date().toISOString().split('T')[0])
     const [notes, setNotes] = useState('')
+    const [isRecurring, setIsRecurring] = useState(false)
     const [saved, setSaved] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [isPending, startTransition] = useTransition()
+
+    const currencySymbol = CURRENCIES.find(c => c.code === currency)?.symbol ?? '₡'
 
     const handleSave = () => {
         if (!amount || !payee) return
@@ -32,10 +42,12 @@ export function AddTxnModal({ open, onClose }: AddTxnModalProps) {
         const formData = new FormData()
         formData.set('direction', type)
         formData.set('amount', amount)
+        formData.set('currency', currency)
         formData.set('payee', payee)
         formData.set('category', category)
         formData.set('date', date)
         formData.set('notes', notes)
+        formData.set('isRecurring', String(isRecurring))
 
         startTransition(async () => {
             try {
@@ -43,7 +55,7 @@ export function AddTxnModal({ open, onClose }: AddTxnModalProps) {
                 setSaved(true)
                 setTimeout(() => {
                     setSaved(false)
-                    setAmount(''); setPayee(''); setNotes('')
+                    setAmount(''); setPayee(''); setNotes(''); setCurrency('CRC')
                     onClose()
                 }, 800)
             } catch (e: any) {
@@ -59,8 +71,12 @@ export function AddTxnModal({ open, onClose }: AddTxnModalProps) {
             {/* Backdrop */}
             <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm" onClick={onClose} />
 
-            {/* Sheet */}
-            <div className="fixed bottom-0 left-0 right-0 z-50 bg-card rounded-t-3xl border-t border-border/60 shadow-2xl p-5 pb-safe animate-in slide-in-from-bottom duration-300 max-h-[90vh] overflow-y-auto">
+            {/* Sheet (móvil) / Modal centrado angosto (desktop) */}
+            <div className="fixed z-50 bg-card border-border/60 shadow-2xl overflow-y-auto p-5
+              bottom-0 left-0 right-0 rounded-t-3xl border-t max-h-[92vh]
+              lg:bottom-auto lg:left-1/2 lg:top-1/2 lg:-translate-x-1/2 lg:-translate-y-1/2
+              lg:w-full lg:max-w-sm lg:rounded-3xl lg:border lg:max-h-[85vh]
+              animate-in slide-in-from-bottom lg:zoom-in-95 duration-200">
 
                 {/* Handle */}
                 <div className="w-10 h-1 bg-border rounded-full mx-auto mb-4" />
@@ -73,7 +89,7 @@ export function AddTxnModal({ open, onClose }: AddTxnModalProps) {
                     </button>
                 </div>
 
-                {/* Tipo de Transacción */}
+                {/* Tipo */}
                 <div className="flex gap-2 mb-5 bg-secondary/50 p-1 rounded-xl">
                     {(['OUTFLOW', 'INFLOW', 'TRANSFER'] as const).map((t) => (
                         <button
@@ -91,19 +107,41 @@ export function AddTxnModal({ open, onClose }: AddTxnModalProps) {
                 </div>
 
                 <div className="space-y-4">
-                    {/* Monto */}
+
+                    {/* Monto + Moneda */}
                     <div>
-                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">Monto</label>
-                        <div className="flex items-center gap-2 bg-secondary/50 rounded-xl px-4 py-3">
-                            <span className="text-xl font-bold text-muted-foreground">₡</span>
-                            <input
-                                type="number"
-                                placeholder="0"
-                                value={amount}
-                                onChange={e => setAmount(e.target.value)}
-                                className="flex-1 bg-transparent text-2xl font-extrabold outline-none placeholder:text-muted-foreground/40"
-                                autoFocus
-                            />
+                        <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1.5">
+                            Monto
+                        </label>
+                        <div className="flex gap-2">
+                            {/* Selector moneda */}
+                            <div className="flex gap-1 bg-secondary/50 rounded-xl p-1 shrink-0">
+                                {CURRENCIES.map(c => (
+                                    <button
+                                        key={c.code}
+                                        type="button"
+                                        onClick={() => setCurrency(c.code)}
+                                        className={`px-2.5 py-1.5 rounded-lg text-xs font-bold transition-all ${currency === c.code
+                                            ? 'bg-primary text-primary-foreground shadow'
+                                            : 'text-muted-foreground hover:text-foreground'
+                                            }`}
+                                    >
+                                        {c.code}
+                                    </button>
+                                ))}
+                            </div>
+                            {/* Campo monto */}
+                            <div className="flex flex-1 items-center gap-2 bg-secondary/50 rounded-xl px-4 py-3">
+                                <span className="text-xl font-bold text-muted-foreground">{currencySymbol}</span>
+                                <input
+                                    type="number"
+                                    placeholder="0"
+                                    value={amount}
+                                    onChange={e => setAmount(e.target.value)}
+                                    className="flex-1 bg-transparent text-2xl font-extrabold outline-none placeholder:text-muted-foreground/40"
+                                    autoFocus
+                                />
+                            </div>
                         </div>
                     </div>
 
@@ -154,6 +192,21 @@ export function AddTxnModal({ open, onClose }: AddTxnModalProps) {
                         />
                     </div>
 
+                    {/* Toggle Recurrente */}
+                    <div className="flex items-center justify-between bg-secondary/30 rounded-xl px-4 py-3">
+                        <div>
+                            <p className="text-sm font-semibold">Transacción Recurrente</p>
+                            <p className="text-xs text-muted-foreground">Se repite mensualmente</p>
+                        </div>
+                        <button
+                            type="button"
+                            onClick={() => setIsRecurring(!isRecurring)}
+                            className={`relative w-11 h-6 rounded-full transition-all ${isRecurring ? 'bg-primary' : 'bg-secondary'}`}
+                        >
+                            <div className={`absolute top-0.5 w-5 h-5 bg-white rounded-full shadow transition-all ${isRecurring ? 'left-[22px]' : 'left-0.5'}`} />
+                        </button>
+                    </div>
+
                     {/* Error */}
                     {error && (
                         <p className="text-destructive text-xs bg-destructive/10 border border-destructive/20 rounded-xl px-3 py-2">{error}</p>
@@ -172,6 +225,7 @@ export function AddTxnModal({ open, onClose }: AddTxnModalProps) {
                             : saved ? <><Check size={18} /> Guardado</>
                                 : '💾 Guardar Transacción'}
                     </button>
+
                 </div>
             </div>
         </>

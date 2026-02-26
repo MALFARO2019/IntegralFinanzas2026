@@ -1,9 +1,10 @@
 "use client"
 
 import { useState, useMemo } from 'react'
-import { Search, Filter, Plus, AlertCircle } from 'lucide-react'
+import { Search, Plus, AlertCircle } from 'lucide-react'
 import { TxnRow, TxnRowData } from '@/components/txn-row'
 import { AddTxnModal } from '@/components/add-txn-modal'
+import { EditTxnModal, type TxnData } from '@/components/edit-txn-modal'
 import { SettingsSelector } from '@/components/settings-selector'
 
 // Datos mock para demostración visual mientras no hay datos reales
@@ -36,6 +37,7 @@ function groupByDate(txns: TxnRowData[]): Record<string, TxnRowData[]> {
 
 export default function TransactionsClient({ transactions }: Props) {
     const [showModal, setShowModal] = useState(false)
+    const [selectedTxn, setSelectedTxn] = useState<TxnData | null>(null)
     const [search, setSearch] = useState('')
 
     // Usa datos reales si existen, sino mock
@@ -103,7 +105,20 @@ export default function TransactionsClient({ transactions }: Props) {
 
                         {/* Filas de transacción */}
                         <div className="bg-card border border-border/40 rounded-2xl overflow-hidden divide-y divide-border/30">
-                            {txns.map(txn => <TxnRow key={txn.id} txn={txn} />)}
+                            {txns.map(txn => (
+                                <div key={txn.id} onClick={() => setSelectedTxn({
+                                    id: txn.id,
+                                    direction: txn.direction as any,
+                                    amount: txn.amount,
+                                    currencyCode: 'CRC',
+                                    payeeText: txn.payeeText,
+                                    category: txn.categoryName,
+                                    txnDate: txn.txnDate.split('T')[0],
+                                    notes: null,
+                                })} className="cursor-pointer">
+                                    <TxnRow txn={txn} />
+                                </div>
+                            ))}
                         </div>
                     </div>
                 ))}
@@ -125,6 +140,7 @@ export default function TransactionsClient({ transactions }: Props) {
             </button>
 
             <AddTxnModal open={showModal} onClose={() => setShowModal(false)} />
+            <EditTxnModal txn={selectedTxn} onClose={() => setSelectedTxn(null)} />
         </div>
     )
 }

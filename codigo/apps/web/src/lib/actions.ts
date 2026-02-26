@@ -1,3 +1,5 @@
+'use server'
+
 import { createClient } from '@/lib/supabase/server'
 
 /**
@@ -5,7 +7,6 @@ import { createClient } from '@/lib/supabase/server'
  * Se llama desde el formulario de Onboarding como Server Action.
  */
 export async function createHousehold(formData: FormData) {
-    'use server'
 
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
@@ -60,7 +61,6 @@ export async function createHousehold(formData: FormData) {
  * Agrega la primera cuenta al Household recién creado.
  */
 export async function createFirstAccount(formData: FormData) {
-    'use server'
 
     const supabase = createClient()
     const { data: { user } } = await supabase.auth.getUser()
